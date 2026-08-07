@@ -95,9 +95,26 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
 
     public function layout_body_end_hook($p_event)
     {
-        if (isset($_GET['id'])) {
-            $issue_id = $_GET['id'];
+
+        $issue_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+        // The hook runs on every page, and `id` there is not always a bug id
+        // (manage_user_edit_page.php, plugin pages, ...) — bug_get_row() would
+        // throw ERROR_BUG_NOT_FOUND on those.
+        if ($issue_id > 0 && bug_exists($issue_id)) {
             $issue = bug_get_row($issue_id);
+
+            // NO_USER (0) has no row in the user table and neither has a deleted
+            // account, so user_get_row() must not be reached for either
+            $handler_id = (int)$issue['handler_id'];
+            $assignee_cant_view_issue = false;
+
+            if ($issue['view_state'] == VS_PRIVATE && $handler_id != NO_USER && user_exists($handler_id)) {
+                $handler = user_get_row($handler_id);
+                $assignee_cant_view_issue = !access_has_bug_level($handler['access_level'], $issue_id, $handler_id);
+            }
+
+            include 'inc/confirm_modal_assignee.php';
 
             $allow_set_public_issue = plugin_config_get('allow_set_public_issue');
             $allow_set_public_issue['change_status_access'] = $this->ImaticChangeStatusAccess();
@@ -114,8 +131,8 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
                 'allow_set_public_issue' => $allow_set_public_issue,
                 'warning_public_issue_private_bugnote' => $warning_public_issue_private_bugnote,
                 'warning_private_issue_public_bugnote' => $warning_private_issue_public_bugnote,
-                'submit_confirm_shortcut' =>  plugin_config_get('submit_confirm_shortcut')
-
+                'submit_confirm_shortcut' =>  plugin_config_get('submit_confirm_shortcut'),
+                'assignee_cant_view_issue' => $assignee_cant_view_issue,
             ]));
             echo '<script id="imaticIssueType" data-data="' . $t_data . '" src="' . plugin_file('issue-checker.js') . '&v=' . $this->version . '"></script>
             <link rel="stylesheet" type="text/css" href="' . plugin_file('style.css') . '&v=' . $this->version . '" />';

@@ -8,3 +8,8 @@ $s_plugin_add_public_bugnote_button = 'Přidat veřejnou poznámku';
 $s_plugin_public_issue = 'Veřejný Problém';
 $s_plugin_private_issue = 'Soukromý Problém';
 $s_plugin_really_add_bugnote_tooltip = 'Odeslat stisknutím těchto kláves: ';
+
+$s_plugin_assignee_warning_message = 'Toto issue je soukromé, ale je přiřazeno uživateli, který ho nemůže vidět. Zvažte změnu přiřazení nebo viditelnosti.';
+$s_plugin_assignee_warning_button_fix = 'Změnit přiřazení / viditelnost';
+$s_plugin_assignee_warning_button_close = 'Rozumím';
+$s_plugin_warning = 'Upozornění';

@@ -18,6 +18,8 @@ window.onload = function () {
   const butnoteTextArea = document.querySelector("#bugnote_text");
   const loader = document.getElementById("loader");
   const confirmBugnote = document.getElementById("confirm_bugnote");
+  const VIEW_STATE_PRIVATE = 50;
+  const VIEW_STATE_PUBLIC = 10;
 
   setPublicIssueButtonAccess()
   sendBugnoteModal();
@@ -28,7 +30,7 @@ window.onload = function () {
     butnoteTextArea.classList.remove("bugnote-private");
 
     switch (settings.issue_view_state) {
-      case 50:
+      case VIEW_STATE_PRIVATE:
         e.preventDefault();
         bugnoteConfirm(
           settings.warning_private_issue_public_bugnote.message
@@ -43,7 +45,7 @@ window.onload = function () {
   // Left button, default mantis add bugnote button
   addButton.addEventListener("click", function (e) {
     switch (settings.issue_view_state) {
-      case 10:
+      case VIEW_STATE_PUBLIC:
         if (checkBoxViewStatus.checked) {
           if (settings.warning_public_issue_private_bugnote.allow) {
             e.preventDefault();
@@ -58,7 +60,7 @@ window.onload = function () {
           showLoader();
         }
         break;
-      case 50:
+      case VIEW_STATE_PRIVATE:
         if (!checkBoxViewStatus.checked) {
           if (settings.warning_private_issue_public_bugnote.allow) {
             e.preventDefault();
@@ -194,4 +196,38 @@ window.onload = function () {
   function AddNoteClick() {
     addButton.dispatchEvent(new MouseEvent("click"));
   }
+
+
+  if(settings.assignee_cant_view_issue === true){
+    // console.log(settings.assignee_cant_view_issue)
+      // const modal = $('#assigneeWarningModal');
+      // console.log(modal)
+      //   modal.modal('show');
+      // $('#assignee_warning').show();
+
+      console.log(settings.assignee_cant_view_issue)
+
+      const warning = document.getElementById('assignee_warning');
+      const closeBtn = document.getElementById('assignee_warning_close');
+      const confirmBtn = document.getElementById('assignee_warning_confirm');
+
+
+      if (warning && settings.assignee_cant_view_issue === true) {
+          console.log('aaa')
+          warning.style.display = 'block';
+      }
+
+      if(closeBtn){
+          closeBtn.addEventListener('click', function() {
+              warning.style.display = 'none';
+          });
+      }
+
+        if(confirmBtn){
+            confirmBtn.addEventListener('click', function() {
+                warning.style.display = 'none';
+            });
+        }
+  }
+
 };
