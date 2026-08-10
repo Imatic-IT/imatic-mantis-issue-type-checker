@@ -105,13 +105,14 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             $issue = bug_get_row($issue_id);
 
             // NO_USER (0) has no row in the user table and neither has a deleted
-            // account, so user_get_row() must not be reached for either
+            // account, so the access check must not be reached for either
             $handler_id = (int)$issue['handler_id'];
             $assignee_cant_view_issue = false;
 
             if ($issue['view_state'] == VS_PRIVATE && $handler_id != NO_USER && user_exists($handler_id)) {
-                $handler = user_get_row($handler_id);
-                $assignee_cant_view_issue = !access_has_bug_level($handler['access_level'], $issue_id, $handler_id);
+                // First argument is the required threshold, not the handler's own level
+                $t_view_threshold = config_get('view_bug_threshold', null, $handler_id, $issue['project_id']);
+                $assignee_cant_view_issue = !access_has_bug_level($t_view_threshold, $issue_id, $handler_id);
             }
 
             include 'inc/confirm_modal_assignee.php';
