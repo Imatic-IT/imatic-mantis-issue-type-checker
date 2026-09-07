@@ -5,8 +5,8 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
     public function register(): void
     {
         $this->name = 'Imatic issue checker';
-        $this->description = 'Warning when private issue has public note && added button send public note';
-        $this->version = '0.0.5';
+        $this->description = 'Warning when private issue has public note, button to send public note, private issues cannot be assigned to users who cannot view them';
+        $this->version = '0.1.0';
         $this->requires = [
             'MantisCore' => '2.0.0',
         ];
@@ -31,7 +31,17 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             ],
             'submit_confirm_shortcut' => [
                 'send_bugnote' => ['Enter', 'NumpadEnter']
-            ]
+            ],
+            // Hide users who cannot view private issues from the assignee select of a
+            // private issue and refuse such an assignment on the server side
+            'restrict_private_issue_handlers' => true,
+        ];
+    }
+
+    public function errors(): array
+    {
+        return [
+            'HandlerCannotViewPrivateIssue' => lang_get('plugin_error_handler_cannot_view_private_issue'),
         ];
     }
 
@@ -40,6 +50,8 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
         return [
             'EVENT_LAYOUT_BODY_END' => 'layout_body_end_hook',
             'EVENT_BUGNOTE_ADD_FORM' => 'event_bugnote_add_form',
+            'EVENT_REPORT_BUG_DATA' => 'event_report_bug_data',
+            'EVENT_UPDATE_BUG_DATA' => 'event_update_bug_data',
         ];
     }
 
@@ -95,6 +107,7 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
 
     public function layout_body_end_hook($p_event)
     {
+        $this->printHandlerRestriction();
 
         $issue_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
@@ -138,5 +151,207 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             echo '<script id="imaticIssueType" data-data="' . $t_data . '" src="' . plugin_file('issue-checker.js') . '&v=' . $this->version . '"></script>
             <link rel="stylesheet" type="text/css" href="' . plugin_file('style.css') . '&v=' . $this->version . '" />';
         }
+    }
+
+    /**
+     * New issue: refuse a private issue assigned to a user who could not view it.
+     * Covers the report form and the REST API.
+     */
+    public function event_report_bug_data($p_event, BugData $p_bug): BugData
+    {
+        $this->ensureHandlerCanViewIssue($p_bug);
+
+        return $p_bug;
+    }
+
+    /**
+     * Issue update: refuse when the handler or the visibility changes into a
+     * combination the handler cannot view. Covers the update page, the change
+     * status page and the quick "Assign to" form on the issue detail.
+     *
+     * Only the changed combination is checked so an already inconsistent issue
+     * (assigned before this rule existed) stays editable.
+     */
+    public function event_update_bug_data($p_event, BugData $p_updated_bug, BugData $p_existing_bug): BugData
+    {
+        if ((int)$p_updated_bug->handler_id !== (int)$p_existing_bug->handler_id
+            || (int)$p_updated_bug->view_state !== (int)$p_existing_bug->view_state
+            || (int)$p_updated_bug->project_id !== (int)$p_existing_bug->project_id
+        ) {
+            $this->ensureHandlerCanViewIssue($p_updated_bug);
+        }
+
+        return $p_updated_bug;
+    }
+
+    private function ensureHandlerCanViewIssue(BugData $p_bug): void
+    {
+        if (!plugin_config_get('restrict_private_issue_handlers')) {
+            return;
+        }
+
+        $handler_id = (int)$p_bug->handler_id;
+
+        if ((int)$p_bug->view_state !== VS_PRIVATE || $handler_id === NO_USER) {
+            return;
+        }
+
+        // Mantis always lets the reporter view their own issue
+        if ($handler_id === (int)$p_bug->reporter_id) {
+            return;
+        }
+
+        if (!$this->userCanViewPrivateIssues($handler_id, (int)$p_bug->project_id)) {
+            plugin_error('HandlerCannotViewPrivateIssue');
+        }
+    }
+
+    private function userCanViewPrivateIssues(int $user_id, int $project_id): bool
+    {
+        $threshold = config_get('private_bug_threshold', null, $user_id, $project_id);
+
+        return access_has_project_level($threshold, $project_id, $user_id);
+    }
+
+    /**
+     * Users who may handle issues in the project but cannot view private ones.
+     * The reporter (if known) is never restricted, see ensureHandlerCanViewIssue().
+     *
+     * @return int[]
+     */
+    private function getRestrictedHandlerIds(int $project_id, int $reporter_id = NO_USER): array
+    {
+        $handle_threshold = config_get('handle_bug_threshold', null, null, $project_id);
+        $restricted = [];
+
+        foreach (project_get_all_user_rows($project_id, $handle_threshold) as $user_id => $row) {
+            $user_id = (int)$user_id;
+
+            if ($user_id === $reporter_id || $this->userCanViewPrivateIssues($user_id, $project_id)) {
+                continue;
+            }
+
+            $restricted[] = $user_id;
+        }
+
+        return $restricted;
+    }
+
+    /**
+     * Emit the script that hides restricted users from the assignee select on
+     * pages that have one. The script follows the view_state control on the page,
+     * so the list narrows as soon as the user marks the issue private.
+     */
+    private function printHandlerRestriction(): void
+    {
+        if (!plugin_config_get('restrict_private_issue_handlers') || !auth_is_user_authenticated()) {
+            return;
+        }
+
+        $context = $this->getHandlerRestrictionContext();
+
+        if ($context === null || empty($context['restricted_ids'])) {
+            return;
+        }
+
+        $t_data = htmlspecialchars(json_encode($context));
+
+        echo '<script id="imaticHandlerRestriction" data-data="' . $t_data . '" src="' . plugin_file('handler-restriction.js') . '&v=' . $this->version . '"></script>';
+    }
+
+    /**
+     * @return array|null ['is_private' => bool, 'restricted_ids' => int[]], null when the page has no assignee select
+     */
+    private function getHandlerRestrictionContext(): ?array
+    {
+        if (is_page_name('bug_report_page.php')) {
+            return $this->getReportPageContext();
+        }
+
+        if (is_page_name('bug_actiongroup_page.php')) {
+            return $this->getActionGroupPageContext();
+        }
+
+        $issue_id = 0;
+
+        if (is_page_name('bug_update_page.php')) {
+            $issue_id = gpc_get_int('bug_id', 0);
+        } elseif (is_page_name('bug_view_page.php') || is_page_name('bug_view_advanced_page.php')
+            || is_page_name('view.php') || is_page_name('bug_change_status_page.php')
+        ) {
+            $issue_id = gpc_get_int('id', 0);
+        }
+
+        if ($issue_id <= 0 || !bug_exists($issue_id)) {
+            return null;
+        }
+
+        $issue = bug_get_row($issue_id);
+
+        return [
+            'is_private' => (int)$issue['view_state'] === VS_PRIVATE,
+            'restricted_ids' => $this->getRestrictedHandlerIds((int)$issue['project_id'], (int)$issue['reporter_id']),
+        ];
+    }
+
+    private function getReportPageContext(): ?array
+    {
+        $copy_from_id = gpc_get_int('m_id', 0);
+
+        if ($copy_from_id > 0 && bug_exists($copy_from_id)) {
+            $project_id = (int)bug_get_field($copy_from_id, 'project_id');
+        } else {
+            // Same resolution as bug_report_page.php
+            $project_id = gpc_get_int('project_id', helper_get_current_project());
+            $default_project = user_pref_get_pref(auth_get_current_user_id(), 'default_project');
+
+            if (ALL_PROJECTS == $project_id && ALL_PROJECTS != $default_project) {
+                $project_id = (int)$default_project;
+            }
+        }
+
+        if (ALL_PROJECTS == $project_id) {
+            // The page asks the user to pick a project first, no form is rendered
+            return null;
+        }
+
+        return [
+            'is_private' => (int)config_get('default_bug_view_status', null, null, $project_id) === VS_PRIVATE,
+            'restricted_ids' => $this->getRestrictedHandlerIds($project_id, auth_get_current_user_id()),
+        ];
+    }
+
+    /**
+     * Group action "Assign": the select serves several issues at once, so a user
+     * is hidden when they could not view any of the selected private issues.
+     */
+    private function getActionGroupPageContext(): ?array
+    {
+        if (gpc_get_string('action', '') !== 'ASSIGN') {
+            return null;
+        }
+
+        $restricted = [];
+        $is_private = false;
+
+        foreach (gpc_get_int_array('bug_arr', []) as $issue_id) {
+            if (!bug_exists($issue_id)) {
+                continue;
+            }
+
+            $issue = bug_get_row($issue_id);
+
+            if ((int)$issue['view_state'] !== VS_PRIVATE) {
+                continue;
+            }
+
+            $is_private = true;
+            $restricted += array_flip($this->getRestrictedHandlerIds((int)$issue['project_id'], (int)$issue['reporter_id']));
+        }
+
+        return [
+            'is_private' => $is_private,
+            'restricted_ids' => array_keys($restricted),
+        ];
     }
 }
