@@ -16,7 +16,7 @@ Warns while adding notes, depends on view state
 
 - Showing message view state of issue on the top of bugnote form, can by turn off on plugin config ('show_issue_status' => true)
 
-- Private issues cannot be assigned to users who cannot view them (their access level is below `private_bug_threshold`). Such users are hidden from the "Assigned To" select of a private issue (report page, update page, change status page, quick assign on the issue detail, group action "Assign") and the assignment is refused on the server side as well (covers the REST API for new issues). The reporter of the issue is never restricted, Mantis always lets the reporter view their own issue. Can be turned off in plugin config (`restrict_private_issue_handlers` => false).
+- Private issues cannot be assigned to users who cannot view them (their access level is below `private_bug_threshold`). Such users stay listed in the "Assigned To" select of a private issue but are greyed out, cannot be selected and carry a short label (report page, update page, change status page, quick assign on the issue detail, group action "Assign") and the assignment is refused on the server side as well (covers the REST API for new issues). The reporter of the issue is never restricted, Mantis always lets the reporter view their own issue. Can be turned off in plugin config (`restrict_private_issue_handlers` => false).
 
 
 
@@ -54,7 +54,7 @@ Warns while adding notes, depends on view state
 
 - `submit_confirm_shortcut => send_bugnote` (array): Shortcut for send bugnote confirm modal (send as default button).
 
-- `restrict_private_issue_handlers` (boolean): Hide users who cannot view private issues from the assignee select of a private issue and refuse such an assignment when saving.
+- `restrict_private_issue_handlers` (boolean): Grey out (disable) users who cannot view private issues in the assignee select of a private issue and refuse such an assignment when saving.
 
 ### Config code
 

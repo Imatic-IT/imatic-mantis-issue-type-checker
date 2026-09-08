@@ -14,3 +14,4 @@ $s_plugin_assignee_warning_button_fix = 'Změnit přiřazení / viditelnost';
 $s_plugin_assignee_warning_button_close = 'Rozumím';
 $s_plugin_warning = 'Upozornění';
 $s_plugin_error_handler_cannot_view_private_issue = 'Vybraný řešitel nemůže vidět soukromé issue, soukromé issue mu nelze přiřadit.';
+$s_plugin_handler_cannot_view_private_issue_label = '(nevidí soukromé issue)';

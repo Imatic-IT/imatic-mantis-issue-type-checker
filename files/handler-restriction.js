@@ -1,6 +1,7 @@
 /**
- * Hide users who cannot view private issues from the assignee select while the
- * issue is (or is being marked) private. Rendered by ImaticIssueTypeCheckerPlugin::printHandlerRestriction().
+ * Grey out users who cannot view private issues in the assignee select while the
+ * issue is (or is being marked) private. The option stays visible but disabled and
+ * gets a short label explaining why. Rendered by ImaticIssueTypeCheckerPlugin::printHandlerRestriction().
  *
  * The server side (EVENT_REPORT_BUG_DATA / EVENT_UPDATE_BUG_DATA) refuses such an
  * assignment anyway, this only keeps the choice out of the UI.
@@ -15,6 +16,7 @@
 
     var settings = JSON.parse(el.dataset.data);
     var VS_PRIVATE = '50';
+    var label = settings.restricted_label ? ' ' + settings.restricted_label : '';
 
     var restricted = {};
     (settings.restricted_ids || []).forEach(function (id) {
@@ -52,7 +54,7 @@
     }
 
     function apply() {
-        var hide = isPrivate();
+        var restrict = isPrivate();
 
         Array.prototype.forEach.call(selects, function (select) {
             var resetSelection = false;
@@ -68,10 +70,18 @@
                     return;
                 }
 
-                option.disabled = hide;
-                option.hidden = hide;
+                option.disabled = restrict;
+                option.classList.toggle('imatic-restricted-handler', restrict);
 
-                if (hide && option.selected) {
+                if (label) {
+                    if (restrict && option.textContent.slice(-label.length) !== label) {
+                        option.textContent += label;
+                    } else if (!restrict && option.textContent.slice(-label.length) === label) {
+                        option.textContent = option.textContent.slice(0, -label.length);
+                    }
+                }
+
+                if (restrict && option.selected) {
                     resetSelection = true;
                 }
             });

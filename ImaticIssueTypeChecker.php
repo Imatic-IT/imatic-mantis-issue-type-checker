@@ -6,7 +6,7 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
     {
         $this->name = 'Imatic issue checker';
         $this->description = 'Warning when private issue has public note, button to send public note, private issues cannot be assigned to users who cannot view them';
-        $this->version = '0.1.0';
+        $this->version = '0.1.1';
         $this->requires = [
             'MantisCore' => '2.0.0',
         ];
@@ -32,7 +32,7 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             'submit_confirm_shortcut' => [
                 'send_bugnote' => ['Enter', 'NumpadEnter']
             ],
-            // Hide users who cannot view private issues from the assignee select of a
+            // Grey out users who cannot view private issues in the assignee select of a
             // private issue and refuse such an assignment on the server side
             'restrict_private_issue_handlers' => true,
         ];
@@ -238,9 +238,9 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
     }
 
     /**
-     * Emit the script that hides restricted users from the assignee select on
+     * Emit the script that greys out restricted users in the assignee select on
      * pages that have one. The script follows the view_state control on the page,
-     * so the list narrows as soon as the user marks the issue private.
+     * so the options get disabled as soon as the user marks the issue private.
      */
     private function printHandlerRestriction(): void
     {
@@ -254,6 +254,7 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             return;
         }
 
+        $context['restricted_label'] = lang_get('plugin_handler_cannot_view_private_issue_label');
         $t_data = htmlspecialchars(json_encode($context));
 
         echo '<script id="imaticHandlerRestriction" data-data="' . $t_data . '" src="' . plugin_file('handler-restriction.js') . '&v=' . $this->version . '"></script>';
