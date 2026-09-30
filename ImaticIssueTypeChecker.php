@@ -300,7 +300,8 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
         $copy_from_id = gpc_get_int('m_id', 0);
 
         if ($copy_from_id > 0 && bug_exists($copy_from_id)) {
-            $project_id = (int)bug_get_field($copy_from_id, 'project_id');
+            // A clone may be redirected into another project (clone_issue_into_another_project.patch)
+            $project_id = gpc_get_int('project_id', (int)bug_get_field($copy_from_id, 'project_id'));
         } else {
             // Same resolution as bug_report_page.php
             $project_id = gpc_get_int('project_id', helper_get_current_project());
