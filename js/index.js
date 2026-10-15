@@ -82,6 +82,11 @@ window.onload = function () {
   });
 
   addButton.insertAdjacentElement("afterend", addPublicButton);
+  // Keep the confirm dialog next to the submit buttons. The form hook prints it
+  // inside the <tbody> of the bugnote table, where the parser hoists it above
+  // the table; and on small screens it is rendered in-flow (see style.css), so
+  // it has to sit where the user just tapped.
+  addButton.parentNode.insertBefore(confirmBugnote, addButton);
 
   function setIssuePublic() {
 
@@ -154,6 +159,7 @@ window.onload = function () {
   function showModal() {
     confirmBugnote.classList.add("show");
     confirmBugnote.classList.remove("fade");
+    confirmBugnote.scrollIntoView({ block: "nearest" });
     document.addEventListener("keydown", confirmBugnoteKeyDownHandler);
   }
 

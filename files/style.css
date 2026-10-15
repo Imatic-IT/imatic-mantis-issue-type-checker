@@ -59,6 +59,20 @@
 	font-size: 1.3em;
   }
 
+  /* On phones the fixed overlay can end up above the visible area (keyboard open,
+     page zoomed), so render the dialog in-flow right above the submit buttons. */
+  @media (max-width: 767px) {
+	#confirm_bugnote.show {
+		position: static;
+		overflow: visible;
+	}
+	#confirm_bugnote .modal-dialog {
+		width: auto;
+		max-width: none;
+		margin: 10px 0;
+	}
+  }
+
 /* Tooltip container */
 .imatic-checker-tooltip {
 	position: relative;
