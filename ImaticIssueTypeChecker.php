@@ -6,7 +6,7 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
     {
         $this->name = 'Imatic issue checker';
         $this->description = 'Warning when private issue has public note, button to send public note, private issues cannot be assigned to users who cannot view them';
-        $this->version = '0.1.2';
+        $this->version = '0.1.3';
         $this->requires = [
             'MantisCore' => '2.0.0',
         ];
@@ -254,7 +254,6 @@ class ImaticIssueTypeCheckerPlugin extends MantisPlugin
             return;
         }
 
-        $context['restricted_label'] = lang_get('plugin_handler_cannot_view_private_issue_label');
         $t_data = htmlspecialchars(json_encode($context));
 
         echo '<script id="imaticHandlerRestriction" data-data="' . $t_data . '" src="' . plugin_file('handler-restriction.js') . '&v=' . $this->version . '"></script>';

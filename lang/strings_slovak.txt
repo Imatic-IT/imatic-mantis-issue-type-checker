@@ -13,4 +13,3 @@ $s_plugin_assignee_warning_button_fix = 'Zmeniť priradenie / viditeľnosť';
 $s_plugin_assignee_warning_button_close = 'Rozumiem';
 $s_plugin_warning = 'Upozornenie';
 $s_plugin_error_handler_cannot_view_private_issue = 'Vybraný riešiteľ nemôže vidieť súkromné issue, súkromné issue mu nie je možné priradiť.';
-$s_plugin_handler_cannot_view_private_issue_label = '(nevidí súkromné issue)';
